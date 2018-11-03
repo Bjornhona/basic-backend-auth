@@ -10,11 +10,16 @@ const MongoStore = require('connect-mongo')(session);
 
 const auth = require('./routes/auth');
 
-mongoose.connect('mongodb://localhost:27017/auth-react')
+mongoose.connect('mongodb://localhost:27017/auth-react', {
+  keepAlive: true,
+  useNewUrlParser: true,
+  reconnectTries: Number.MAX_VALUE
+}).then(() => {
+  console.log(`Connected to database`);
+}).catch((error) => {
+  console.error(error);
+})
 
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', () => console.log(`Connected to auth-react database`));
 
 const app = express();
 
@@ -26,12 +31,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// // view engine setup
-// app.set('views', path.join(__dirname, 'views'));
-// app.set('view engine', 'ejs');
-
-// uncomment after placing your favicon in /public
-//app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(session({
   store: new MongoStore({
     mongooseConnection: mongoose.connection,
@@ -44,6 +43,7 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
+
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -53,21 +53,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/auth', auth);
 
 // catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  const err = new Error('Not Found');
-  err.status = 404;
-  next(err);
+app.use((req, res, next) => {
+  res.status(404).json({ code: 'not found' });
 });
 
-// error handler
-app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+app.use((err, req, res, next) => {
+  // always log the error
+  console.error('ERROR', req.method, req.path, err);
 
-  // render the error page
-  res.status(err.status || 500);
-  res.json({ error: err.statusMessage });
+  // only render if the error ocurred before sending the response
+  if (!res.headersSent) {
+    res.status(500).json({ code: 'unexpected' });
+  }
 });
 
 module.exports = app;

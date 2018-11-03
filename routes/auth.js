@@ -3,10 +3,10 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 
 const User = require('../models/user');
-const { isLoggedIn } = require('../helpers/is-logged');
+
+const { isLoggedIn } = require('../helpers/middlewares');
 
 router.get('/me', (req, res, next) => {
-  // console.log('me', req.session.currentUser);
   if (req.session.currentUser) {
     res.json(req.session.currentUser);
   } else {
@@ -23,10 +23,7 @@ router.post('/login', (req, res, next) => {
     });
   }
 
-  const {
-    username,
-    password
-  } = req.body;
+  const { username, password } = req.body;
 
   if (!username || !password) {
     return res.status(422).json({
